@@ -55,6 +55,19 @@
             justify-content: center;
             font-size: 1.25rem;
         }
+        /* Thêm style mới cho thùng rác hỏng */
+        .bin-marker-broken {
+            background-color: #4b5563; /* Màu xám cho thùng hỏng */
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
         .truck-marker {
             background-color: #f59e0b; /* Màu cam cho xe */
             width: 2rem;
@@ -150,6 +163,10 @@
                     <button id="reportIncidentBtn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:scale-105" disabled>
                         Báo cáo sự cố
                     </button>
+                    <!-- Nút mới để báo cáo thùng rác bị hỏng -->
+                    <button id="reportBrokenBinBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:scale-105" disabled>
+                        Báo cáo thùng hỏng
+                    </button>
                 </div>
                 
                 <h4 class="text-lg font-semibold mb-2">Nhật ký hệ thống:</h4>
@@ -177,6 +194,23 @@
         </div>
     </div>
 
+    <!-- Modal mới cho việc báo cáo thùng rác hỏng -->
+    <div id="brokenBinModal" class="modal">
+        <div class="modal-content">
+            <h4 class="text-xl font-bold text-white mb-4">Báo cáo thùng rác hỏng</h4>
+            <p class="text-gray-300 mb-4">Vui lòng nhập ID của thùng rác hỏng:</p>
+            <input type="number" id="brokenBinIdInput" class="w-full p-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-blue-500 mb-4" placeholder="Ví dụ: 3">
+            <div class="flex justify-end space-x-2">
+                <button id="cancelBrokenBinBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+                    Hủy
+                </button>
+                <button id="submitBrokenBinBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+                    Xác nhận
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Hằng số và cấu hình
         const FULLNESS_THRESHOLD = 80; // Ngưỡng đầy 80%
@@ -184,16 +218,16 @@
 
         // Dữ liệu mô phỏng
         let bins = [
-            { id: 1, lat: 21.028511, lng: 105.854134, fullness: 50, isCollected: false, marker: null },
-            { id: 2, lat: 21.031201, lng: 105.850422, fullness: 65, isCollected: false, marker: null },
-            { id: 3, lat: 21.034512, lng: 105.859678, fullness: 75, isCollected: false, marker: null },
-            { id: 4, lat: 21.025000, lng: 105.860100, fullness: 40, isCollected: false, marker: null },
-            { id: 5, lat: 21.022100, lng: 105.855000, fullness: 30, isCollected: false, marker: null },
-            { id: 6, lat: 21.029800, lng: 105.851000, fullness: 90, isCollected: false, marker: null },
-            { id: 7, lat: 21.033000, lng: 105.857000, fullness: 85, isCollected: false, marker: null },
-            { id: 8, lat: 21.027000, lng: 105.862000, fullness: 70, isCollected: false, marker: null },
-            { id: 9, lat: 21.030500, lng: 105.856500, fullness: 60, isCollected: false, marker: null },
-            { id: 10, lat: 21.026000, lng: 105.853000, fullness: 78, isCollected: false, marker: null },
+            { id: 1, lat: 21.028511, lng: 105.854134, fullness: 50, isCollected: false, isBroken: false, marker: null },
+            { id: 2, lat: 21.031201, lng: 105.850422, fullness: 65, isCollected: false, isBroken: false, marker: null },
+            { id: 3, lat: 21.034512, lng: 105.859678, fullness: 75, isCollected: false, isBroken: false, marker: null },
+            { id: 4, lat: 21.025000, lng: 105.860100, fullness: 40, isCollected: false, isBroken: false, marker: null },
+            { id: 5, lat: 21.022100, lng: 105.855000, fullness: 30, isCollected: false, isBroken: false, marker: null },
+            { id: 6, lat: 21.029800, lng: 105.851000, fullness: 90, isCollected: false, isBroken: false, marker: null },
+            { id: 7, lat: 21.033000, lng: 105.857000, fullness: 85, isCollected: false, isBroken: false, marker: null },
+            { id: 8, lat: 21.027000, lng: 105.862000, fullness: 70, isCollected: false, isBroken: false, marker: null },
+            { id: 9, lat: 21.030500, lng: 105.856500, fullness: 60, isCollected: false, isBroken: false, marker: null },
+            { id: 10, lat: 21.026000, lng: 105.853000, fullness: 78, isCollected: false, isBroken: false, marker: null },
         ];
         
         let truck = { id: 'T-001', lat: 21.032, lng: 105.855, driver: 'Trần Tùng Em', marker: null, route: [] };
@@ -216,12 +250,19 @@
         const startBtn = document.getElementById('startBtn');
         const optimizeBtn = document.getElementById('optimizeBtn');
         const reportIncidentBtn = document.getElementById('reportIncidentBtn');
+        const reportBrokenBinBtn = document.getElementById('reportBrokenBinBtn'); // Nút mới
         
-        // Lấy các phần tử DOM của modal mới
+        // Lấy các phần tử DOM của modal sự cố
         const incidentModal = document.getElementById('incidentModal');
         const incidentReasonInput = document.getElementById('incidentReasonInput');
         const submitIncidentBtn = document.getElementById('submitIncidentBtn');
         const cancelIncidentBtn = document.getElementById('cancelIncidentBtn');
+        
+        // Lấy các phần tử DOM của modal thùng hỏng
+        const brokenBinModal = document.getElementById('brokenBinModal');
+        const brokenBinIdInput = document.getElementById('brokenBinIdInput');
+        const submitBrokenBinBtn = document.getElementById('submitBrokenBinBtn');
+        const cancelBrokenBinBtn = document.getElementById('cancelBrokenBinBtn');
 
         /**
          * @desc Ghi lại thông điệp vào log box
@@ -285,16 +326,20 @@
         
         /**
          * @desc Tạo icon tùy chỉnh cho thùng rác
-         * @param {number} fullness - Mức đầy của thùng rác
+         * @param {Object} bin - Đối tượng thùng rác
          * @returns {L.DivIcon} - Icon Leaflet
          */
-        const createBinIcon = (fullness) => {
+        const createBinIcon = (bin) => {
             let className = 'bin-marker-normal';
             let emoji = '🗑️';
             
-            if (fullness >= FULLNESS_THRESHOLD) {
+            // Ưu tiên kiểm tra thùng rác hỏng trước
+            if (bin.isBroken) {
+                className = 'bin-marker-broken';
+                emoji = '❌';
+            } else if (bin.fullness >= FULLNESS_THRESHOLD) {
                 className = 'bin-marker-full';
-            } else if (fullness === 0) {
+            } else if (bin.fullness === 0) {
                 className = 'bin-marker-collected';
                 emoji = '♻️';
             }
@@ -336,13 +381,17 @@
         const updateMap = () => {
             // Cập nhật marker thùng rác (tạo mới nếu chưa có)
             bins.forEach(bin => {
-                const icon = createBinIcon(bin.fullness);
+                const icon = createBinIcon(bin);
                 if (bin.marker) {
                     bin.marker.setIcon(icon);
                 } else {
                     bin.marker = L.marker([bin.lat, bin.lng], { icon: icon }).addTo(map);
                 }
-                bin.marker.bindPopup(`<b>Thùng rác ID: ${bin.id}</b><br>Mức đầy: ${bin.fullness}%`);
+                let popupContent = `<b>Thùng rác ID: ${bin.id}</b><br>Mức đầy: ${bin.fullness}%`;
+                if (bin.isBroken) {
+                    popupContent += `<br><b>Trạng thái: Hỏng</b>`;
+                }
+                bin.marker.bindPopup(popupContent);
             });
 
             // Cập nhật marker xe thu gom
@@ -363,7 +412,7 @@
             }
 
             // Cập nhật dashboard
-            const fullBinsCount = bins.filter(b => b.fullness >= FULLNESS_THRESHOLD).length;
+            const fullBinsCount = bins.filter(b => b.fullness >= FULLNESS_THRESHOLD && !b.isBroken).length;
             totalBinsEl.innerText = bins.length;
             fullBinsEl.innerText = fullBinsCount;
         };
@@ -376,8 +425,8 @@
 
             logMessage("Đang cập nhật dữ liệu cảm biến...");
             bins.forEach(bin => {
-                // Chỉ tăng mức đầy của các thùng chưa được thu gom
-                if (!bin.isCollected) {
+                // Chỉ tăng mức đầy của các thùng chưa được thu gom và không bị hỏng
+                if (!bin.isCollected && !bin.isBroken) {
                     bin.fullness += Math.floor(Math.random() * 10);
                     if (bin.fullness > 100) bin.fullness = 100;
                 }
@@ -387,14 +436,14 @@
         };
 
         /**
-         * @desc Tìm các thùng rác đã đầy
+         * @desc Tìm các thùng rác đã đầy và không bị hỏng
          * @returns {Array} - Mảng các thùng rác đã đầy
          */
         const findFullBins = () => {
-            // Khi tối ưu hóa lộ trình, chúng ta chỉ quan tâm đến các thùng rác đầy và chưa được thu gom
-            const fullBins = bins.filter(bin => bin.fullness >= FULLNESS_THRESHOLD && !bin.isCollected);
+            // Chỉ quan tâm đến các thùng rác đầy, chưa được thu gom và không bị hỏng
+            const fullBins = bins.filter(bin => bin.fullness >= FULLNESS_THRESHOLD && !bin.isCollected && !bin.isBroken);
             if (fullBins.length > 0) {
-                logMessage(`Tìm thấy ${fullBins.length} thùng rác đã đầy.`);
+                logMessage(`Tìm thấy ${fullBins.length} thùng rác đã đầy và sẵn sàng thu gom.`);
             }
             return fullBins;
         };
@@ -404,9 +453,16 @@
          * @param {Array} binsToCollect - Mảng các thùng rác cần thu gom
          */
         const calculateOptimalRoute = async (binsToCollect) => {
+            // Dừng xe và xóa lộ trình cũ trước khi tính lộ trình mới
+            if (movementInterval) clearInterval(movementInterval);
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+                routePolyline = null;
+            }
+            truck.route = [];
+
             if (binsToCollect.length === 0) {
                 logMessage("Không có thùng rác nào đầy, không cần tạo lộ trình.");
-                truck.route = [];
                 updateMap();
                 routeStatusEl.innerText = "Đã hoàn thành";
                 return;
@@ -449,7 +505,7 @@
                     }
                     currentTargetBinIndex = 0;
 
-                    logMessage(`Lộ trình đã được tạo với ${routeTargetBins.length} điểm dừng.`);
+                    logMessage(`Lộ trình mới đã được tạo với ${routeTargetBins.length} điểm dừng.`);
                     routeStatusEl.innerText = "Đã có lộ trình";
                     truckStatusEl.innerText = "Đang di chuyển";
                     
@@ -531,6 +587,7 @@
         const handleIncidentReport = (reason) => {
             // Dừng xe và xóa lộ trình cũ
             if (movementInterval) clearInterval(movementInterval);
+            truck.route = []; // Xóa lộ trình hiện tại
             logMessage(`Sự cố đã được báo cáo với lý do: "${reason}". Xe đang tạm dừng.`);
             truckStatusEl.innerText = "Gặp sự cố";
             routeStatusEl.innerText = "Đang tính lại lộ trình";
@@ -555,7 +612,7 @@
             // Tính lại lộ trình sau một chút
             setTimeout(() => {
                 logMessage("Đang tính toán lại lộ trình mới...");
-                const remainingBins = bins.filter(bin => bin.fullness >= FULLNESS_THRESHOLD && !bin.isCollected);
+                const remainingBins = bins.filter(bin => bin.fullness >= FULLNESS_THRESHOLD && !bin.isCollected && !bin.isBroken);
                 if (remainingBins.length > 0) {
                     calculateOptimalRoute(remainingBins);
                 } else {
@@ -564,6 +621,30 @@
                     routeStatusEl.innerText = "Hoàn thành";
                 }
             }, 3000);
+        };
+        
+        /**
+         * @desc Xử lý khi báo cáo thùng rác hỏng
+         * @param {number} binId - ID của thùng rác hỏng
+         */
+        const handleBrokenBinReport = (binId) => {
+            const bin = bins.find(b => b.id === binId);
+            if (bin) {
+                bin.isBroken = true;
+                logMessage(`Thùng rác ID: ${binId} đã được báo cáo là hỏng.`);
+                
+                // Cập nhật bản đồ ngay lập tức để hiển thị trạng thái mới
+                updateMap();
+                
+                // Nếu xe đang trên lộ trình, tính lại lộ trình để bỏ qua thùng rác hỏng
+                if (isSimulating && routeStatusEl.innerText === "Đã có lộ trình") {
+                    logMessage("Phát hiện thùng hỏng trong lộ trình. Đang tính toán lại lộ trình.");
+                    const remainingBins = bins.filter(b => b.fullness >= FULLNESS_THRESHOLD && !b.isCollected && !b.isBroken);
+                    calculateOptimalRoute(remainingBins);
+                }
+            } else {
+                logMessage(`Không tìm thấy thùng rác có ID: ${binId}.`);
+            }
         };
 
 
@@ -577,6 +658,7 @@
                 startBtn.classList.add('bg-red-600');
                 optimizeBtn.disabled = false;
                 reportIncidentBtn.disabled = false;
+                reportBrokenBinBtn.disabled = false;
                 logMessage("Bắt đầu mô phỏng thu thập dữ liệu.");
                 truckStatusEl.innerText = "Đang chờ";
             } else {
@@ -588,6 +670,7 @@
                 startBtn.classList.add('bg-blue-600');
                 optimizeBtn.disabled = true;
                 reportIncidentBtn.disabled = true;
+                reportBrokenBinBtn.disabled = true;
                 logMessage("Dừng mô phỏng.");
             }
         });
@@ -620,6 +703,28 @@
             logMessage("Hủy báo cáo sự cố.");
         });
 
+        // Xử lý sự kiện cho nút và modal thùng rác hỏng
+        reportBrokenBinBtn.addEventListener('click', () => {
+            brokenBinModal.style.display = 'flex';
+        });
+
+        submitBrokenBinBtn.addEventListener('click', () => {
+            const binId = parseInt(brokenBinIdInput.value, 10);
+            if (!isNaN(binId)) {
+                handleBrokenBinReport(binId);
+            } else {
+                logMessage("ID không hợp lệ. Vui lòng nhập một số.");
+            }
+            brokenBinIdInput.value = '';
+            brokenBinModal.style.display = 'none';
+        });
+
+        cancelBrokenBinBtn.addEventListener('click', () => {
+            brokenBinIdInput.value = '';
+            brokenBinModal.style.display = 'none';
+            logMessage("Hủy báo cáo thùng rác hỏng.");
+        });
+
         // Khởi động ứng dụng khi trang được tải
         window.onload = function() {
             logMessage("Chào mừng bạn đến với demo. Hãy nhấn 'Bắt đầu mô phỏng' để khởi động hệ thống.");
@@ -628,3 +733,4 @@
     </script>
 </body>
 </html>
+
